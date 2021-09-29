@@ -35,15 +35,27 @@ export const createConnectAccount = async (req, res) => {
     res.send(link);
 }
 
+const updateDelayDays = async(accountId) => {
+    const account = await stripe.accounts.update(accountId, {
+        payout_schedule: {
+            delay_days: 9,
+        },
+    });
+    return account;
+};
+
 export const getAccountStatus = async (req, res) => {
     // console.log('GET ACCOUNT STATUS');
     const user = await User.findById(req.user._id).exec()
     const account = await stripe.accounts.retrieve(user.stripe_account_id);
     // console.log("USER ACCOUNT RETRIEVE", account);
+    // update delay days
+    const updatedAccount = await updateDelayDays(account.id);
+
     const updatedUser = await User.findByIdAndUpdate(
         user._id,
         {
-            stripe_seller: account,
+            stripe_seller: updatedAccount,
         },
         { new: true }
     )
@@ -52,3 +64,18 @@ export const getAccountStatus = async (req, res) => {
         // console.log(updatedUser);
         res.json(updatedUser);
 }
+
+export const getAccountBalance = async(req, res) => {
+    const user = await User.findById(req.user._id).exec();
+
+    try {
+        const balance = await stripe.balance.retrieve({
+           stripeAccount: user.stripe_account_id,
+        });
+        console.log("BALANCE ===>", balance);
+        res.json(balance);
+    } catch (err) {
+        console.log(err);
+    }
+}
+
